@@ -15,11 +15,11 @@ jobs:
         uses: ATiltedTree/setup-rust@v1
         with:
           rust-version: stable
-      - name: Group of log lines
+      - name: Setup a dummy config
         run: |
             echo "[user]" > ~/.gitconfig
             echo "        name = Test User" > ~/.gitconfig
-            echo "        email = celpa.firl@gmail.com" > ~/.gitconfig
+            echo "        email = noreply@asdf.com" > ~/.gitconfig
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
