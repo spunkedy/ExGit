@@ -9,7 +9,7 @@ defmodule ExGit.MixProject do
       """,
       package: package(),
       licenses: ["MIT"],
-      version: "0.1.0",
+      version: "0.3.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -24,6 +24,16 @@ defmodule ExGit.MixProject do
     [
       maintainers: ["Ed Bond"],
       licenses: ["MIT"],
+      files: ~w(
+        lib
+        priv
+        native/exgit/src
+        native/exgit/Cargo.lock
+        native/exgit/Cargo.toml
+        .formatter.exs
+        mix.exs
+        README*
+        LICENSE*),
       links: %{"GitHub" => "https://github.com/spunkedy/ExGit"}
     ]
   end

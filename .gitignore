@@ -28,3 +28,5 @@ ex_git-*.tar
 # because we create local git testing
 /test/git_testing
 /test/git_testing/*
+
+priv/native
