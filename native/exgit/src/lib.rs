@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use git2::build::RepoBuilder;
+use git2::string_array::StringArray;
 use git2::{Cred, Credentials, Direction, ErrorCode, Oid, RemoteCallbacks, Repository};
 use rustler::{Atom, Error, Term};
 use std::env;
@@ -45,35 +46,38 @@ macro_rules! handle_git_error {
     ($e:expr) => {
         match $e {
             Ok(inner) => inner,
-            Err(ref error) => match error.code() {
-                ErrorCode::GenericError  => return Err(Error::Term(Box::new(atoms::genericerror()))),
-                ErrorCode::NotFound  => return Err(Error::Term(Box::new(atoms::notfound()))),
-                ErrorCode::Exists  => return Err(Error::Term(Box::new(atoms::exists()))),
-                ErrorCode::Ambiguous  => return Err(Error::Term(Box::new(atoms::ambiguous()))),
-                ErrorCode::BufSize  => return Err(Error::Term(Box::new(atoms::bufsize()))),
-                ErrorCode::User  => return Err(Error::Term(Box::new(atoms::user()))),
-                ErrorCode::BareRepo  => return Err(Error::Term(Box::new(atoms::barerepo()))),
-                ErrorCode::UnbornBranch  => return Err(Error::Term(Box::new(atoms::unbornbranch()))),
-                ErrorCode::Unmerged  => return Err(Error::Term(Box::new(atoms::unmerged()))),
-                ErrorCode::NotFastForward  => return Err(Error::Term(Box::new(atoms::notfastforward()))),
-                ErrorCode::InvalidSpec  => return Err(Error::Term(Box::new(atoms::invalidspec()))),
-                ErrorCode::Conflict  => return Err(Error::Term(Box::new(atoms::conflict()))),
-                ErrorCode::Locked  => return Err(Error::Term(Box::new(atoms::locked()))),
-                ErrorCode::Modified  => return Err(Error::Term(Box::new(atoms::modified()))),
-                ErrorCode::Auth  => return Err(Error::Term(Box::new(atoms::auth()))),
-                ErrorCode::Certificate  => return Err(Error::Term(Box::new(atoms::certificate()))),
-                ErrorCode::Applied  => return Err(Error::Term(Box::new(atoms::applied()))),
-                ErrorCode::Peel  => return Err(Error::Term(Box::new(atoms::peel()))),
-                ErrorCode::Eof  => return Err(Error::Term(Box::new(atoms::eof()))),
-                ErrorCode::Invalid  => return Err(Error::Term(Box::new(atoms::invalid()))),
-                ErrorCode::Uncommitted  => return Err(Error::Term(Box::new(atoms::uncommitted()))),
-                ErrorCode::Directory  => return Err(Error::Term(Box::new(atoms::directory()))),
-                ErrorCode::MergeConflict  => return Err(Error::Term(Box::new(atoms::mergeconflict()))),
-                ErrorCode::HashsumMismatch  => return Err(Error::Term(Box::new(atoms::hashsummismatch()))),
-                ErrorCode::IndexDirty  => return Err(Error::Term(Box::new(atoms::indexdirty()))),
-                ErrorCode::ApplyFail  => return Err(Error::Term(Box::new(atoms::applyfail()))),
-                ErrorCode::Owner  => return Err(Error::Term(Box::new(atoms::owner())))
-            },
+            Err(ref error) => {
+                eprintln!("Error: {error}");
+                match error.code() {
+                    ErrorCode::GenericError  => return Err(Error::Term(Box::new(atoms::genericerror()))),
+                    ErrorCode::NotFound  => return Err(Error::Term(Box::new(atoms::notfound()))),
+                    ErrorCode::Exists  => return Err(Error::Term(Box::new(atoms::exists()))),
+                    ErrorCode::Ambiguous  => return Err(Error::Term(Box::new(atoms::ambiguous()))),
+                    ErrorCode::BufSize  => return Err(Error::Term(Box::new(atoms::bufsize()))),
+                    ErrorCode::User  => return Err(Error::Term(Box::new(atoms::user()))),
+                    ErrorCode::BareRepo  => return Err(Error::Term(Box::new(atoms::barerepo()))),
+                    ErrorCode::UnbornBranch  => return Err(Error::Term(Box::new(atoms::unbornbranch()))),
+                    ErrorCode::Unmerged  => return Err(Error::Term(Box::new(atoms::unmerged()))),
+                    ErrorCode::NotFastForward  => return Err(Error::Term(Box::new(atoms::notfastforward()))),
+                    ErrorCode::InvalidSpec  => return Err(Error::Term(Box::new(atoms::invalidspec()))),
+                    ErrorCode::Conflict  => return Err(Error::Term(Box::new(atoms::conflict()))),
+                    ErrorCode::Locked  => return Err(Error::Term(Box::new(atoms::locked()))),
+                    ErrorCode::Modified  => return Err(Error::Term(Box::new(atoms::modified()))),
+                    ErrorCode::Auth  => return Err(Error::Term(Box::new(atoms::auth()))),
+                    ErrorCode::Certificate  => return Err(Error::Term(Box::new(atoms::certificate()))),
+                    ErrorCode::Applied  => return Err(Error::Term(Box::new(atoms::applied()))),
+                    ErrorCode::Peel  => return Err(Error::Term(Box::new(atoms::peel()))),
+                    ErrorCode::Eof  => return Err(Error::Term(Box::new(atoms::eof()))),
+                    ErrorCode::Invalid  => return Err(Error::Term(Box::new(atoms::invalid()))),
+                    ErrorCode::Uncommitted  => return Err(Error::Term(Box::new(atoms::uncommitted()))),
+                    ErrorCode::Directory  => return Err(Error::Term(Box::new(atoms::directory()))),
+                    ErrorCode::MergeConflict  => return Err(Error::Term(Box::new(atoms::mergeconflict()))),
+                    ErrorCode::HashsumMismatch  => return Err(Error::Term(Box::new(atoms::hashsummismatch()))),
+                    ErrorCode::IndexDirty  => return Err(Error::Term(Box::new(atoms::indexdirty()))),
+                    ErrorCode::ApplyFail  => return Err(Error::Term(Box::new(atoms::applyfail()))),
+                    ErrorCode::Owner  => return Err(Error::Term(Box::new(atoms::owner())))
+                }
+            }
         }
     };
 }
@@ -207,10 +211,11 @@ fn push_remote(destination: &str, branch: &str) -> Result<(Atom, String), Error>
 fn fast_forward(path: &str, branch: &str) -> Result<(Atom, String), Error> {
     let repo = Repository::open(path).unwrap();
 
-    repo.find_remote("origin")
-        .unwrap()
-        .fetch(&[branch], None, None)
+    let mut remote = repo.find_remote("origin").unwrap();
+    remote
+        .connect_auth(Direction::Fetch, Some(get_credentials()), None)
         .unwrap();
+    remote.fetch(&[branch], None, None).unwrap();
 
     let fetch_head = repo.find_reference("FETCH_HEAD").unwrap();
     let fetch_commit = repo.reference_to_annotated_commit(&fetch_head).unwrap();
@@ -232,6 +237,15 @@ fn fast_forward(path: &str, branch: &str) -> Result<(Atom, String), Error> {
     }
 }
 
+#[rustler::nif]
+fn list_references_rust(path: &str) -> Result<(Atom, String), Error> {
+    let repo = Repository::open(path).unwrap();
+    let response = repo.references();
+    let references = handle_git_error!(response);
+    let to_pass_back = references.fold(String::new(), |a, b| a + b.unwrap().name().unwrap() + ",");
+    Ok((atoms::ok(), to_pass_back))
+}
+
 rustler::init!(
     "Elixir.ExGit",
     [
@@ -241,6 +255,7 @@ rustler::init!(
         clone,
         add_commit,
         push_remote,
-        fast_forward
+        fast_forward,
+        list_references_rust
     ]
 );

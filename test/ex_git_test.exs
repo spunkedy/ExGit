@@ -54,27 +54,35 @@ defmodule ExGitTest do
     :ok = File.write(@clone_prefix <> "push_a/test.txt", "123")
     ExGit.add_commit(@clone_prefix <> "push_a", "push 123")
 
+    {:ok, remotes} = ExGit.list_references(@clone_prefix <> "push_a")
+
+    to_push =
+      remotes
+      |> Enum.at(0)
+      |> String.replace("refs/heads/", "")
+      |> IO.inspect()
+
     # push back changes so b can see it
-    assert {:ok, "Pushed Successfully"} == ExGit.push_remote(@clone_prefix <> "push_a", "master")
+    assert {:ok, "Pushed Successfully"} == ExGit.push_remote(@clone_prefix <> "push_a", to_push)
 
     # pull to check the file from b
     assert {:ok, "Updated"} ==
-             ExGit.fast_forward(@clone_prefix <> "push_b", "master")
+             ExGit.fast_forward(@clone_prefix <> "push_b", to_push)
 
     assert {:ok, "Up to date already"} ==
-             ExGit.fast_forward(@clone_prefix <> "push_b", "master")
+             ExGit.fast_forward(@clone_prefix <> "push_b", to_push)
 
     # cause collision
 
     # commit to a
     :ok = File.write(@clone_prefix <> "push_a/test2.txt", "1234")
     ExGit.add_commit(@clone_prefix <> "push_a", "push 123")
-    assert {:ok, "Pushed Successfully"} == ExGit.push_remote(@clone_prefix <> "push_a", "master")
+    assert {:ok, "Pushed Successfully"} == ExGit.push_remote(@clone_prefix <> "push_a", to_push)
 
     # commit to b and push
     :ok = File.write(@clone_prefix <> "push_b/test2.txt", "5678")
     ExGit.add_commit(@clone_prefix <> "push_b", "push 123")
-    assert {:error, :notfastforward} == ExGit.push_remote(@clone_prefix <> "push_b", "master")
+    assert {:error, :notfastforward} == ExGit.push_remote(@clone_prefix <> "push_b", to_push)
   end
 
   # test "remote repo" do

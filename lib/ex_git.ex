@@ -43,4 +43,14 @@ defmodule ExGit do
   def latest_message(_destination), do: :erlang.nif_error(:nif_not_loaded)
   def push_remote(_destination, _branch), do: :erlang.nif_error(:nif_not_loaded)
   def fast_forward(_destination, _branch), do: :erlang.nif_error(:nif_not_loaded)
+  def list_references_rust(_path), do: :erlang.nif_error(:nif_not_loaded)
+
+  def list_references(path) do
+    {:ok, references} = list_references_rust(path)
+
+    {:ok,
+     references
+     |> String.trim(",")
+     |> String.split(",")}
+  end
 end
