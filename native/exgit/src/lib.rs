@@ -209,6 +209,10 @@ fn push_remote(destination: &str, branch: &str) -> Result<(Atom, String), Error>
 
 #[rustler::nif]
 fn fast_forward(path: &str, branch: &str) -> Result<(Atom, String), Error> {
+    fast_forward_private(path, branch)
+}
+
+fn fast_forward_private(path: &str, branch: &str) -> Result<(Atom, String), Error> {
     let repo = Repository::open(path).unwrap();
 
     let mut remote = repo.find_remote("origin").unwrap();
@@ -276,6 +280,7 @@ fn checkout_branch(path: &str, branch_name: &str) -> Result<(Atom, String), Erro
     let _response = repo.checkout_tree(&obj, None);
 
     let _response = repo.set_head(&("refs/heads/".to_owned() + branch_name));
+    let _ff = fast_forward_private(path, branch_name);
     Ok((atoms::ok(), String::from("Checked out")))
 }
 
