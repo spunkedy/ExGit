@@ -60,7 +60,6 @@ defmodule ExGitTest do
       remotes
       |> Enum.at(0)
       |> String.replace("refs/heads/", "")
-      |> IO.inspect()
 
     # push back changes so b can see it
     assert {:ok, "Pushed Successfully"} == ExGit.push_remote(@clone_prefix <> "push_a", to_push)

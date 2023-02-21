@@ -215,7 +215,11 @@ fn fast_forward(path: &str, branch: &str) -> Result<(Atom, String), Error> {
     remote
         .connect_auth(Direction::Fetch, Some(get_credentials()), None)
         .unwrap();
-    remote.fetch(&[branch], None, None).unwrap();
+
+    let mut fo = git2::FetchOptions::new();
+    let callbacks = get_credentials();
+    fo.remote_callbacks(callbacks);
+    remote.fetch(&[branch], Some(&mut fo), None).unwrap();
 
     let fetch_head = repo.find_reference("FETCH_HEAD").unwrap();
     let fetch_commit = repo.reference_to_annotated_commit(&fetch_head).unwrap();
@@ -230,7 +234,7 @@ fn fast_forward(path: &str, branch: &str) -> Result<(Atom, String), Error> {
             .set_target(fetch_commit.id(), "Fast-Forward")
             .unwrap();
         repo.set_head(&refname).unwrap();
-        // repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()));
+        let _force = repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()));
         Ok((atoms::ok(), String::from("Updated")))
     } else {
         Err(Error::Term(Box::new(atoms::fast_forward_only())))
@@ -246,6 +250,35 @@ fn list_references_rust(path: &str) -> Result<(Atom, String), Error> {
     Ok((atoms::ok(), to_pass_back))
 }
 
+#[rustler::nif]
+fn checkout_branch(path: &str, branch_name: &str) -> Result<(Atom, String), Error> {
+    let repo = Repository::open(path).unwrap();
+
+    let mut remote = repo.find_remote("origin").unwrap();
+    remote
+        .connect_auth(Direction::Fetch, Some(get_credentials()), None)
+        .unwrap();
+    let mut fo = git2::FetchOptions::new();
+    let callbacks = get_credentials();
+    fo.remote_callbacks(callbacks);
+    remote.fetch(&[branch_name], Some(&mut fo), None).unwrap();
+
+    let head = repo.head().unwrap();
+    let oid = head.target().unwrap();
+    let commit = repo.find_commit(oid).unwrap();
+
+    let _branch = repo.branch(branch_name, &commit, false);
+
+    let obj = repo
+        .revparse_single(&("refs/heads/".to_owned() + branch_name))
+        .unwrap();
+
+    let _response = repo.checkout_tree(&obj, None);
+
+    let _response = repo.set_head(&("refs/heads/".to_owned() + branch_name));
+    Ok((atoms::ok(), String::from("Checked out")))
+}
+
 rustler::init!(
     "Elixir.ExGit",
     [
@@ -256,6 +289,7 @@ rustler::init!(
         add_commit,
         push_remote,
         fast_forward,
-        list_references_rust
+        list_references_rust,
+        checkout_branch
     ]
 );
