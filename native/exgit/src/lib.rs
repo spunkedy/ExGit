@@ -271,7 +271,10 @@ fn checkout_branch(path: &str, branch_name: &str) -> Result<(Atom, String), Erro
     let oid = head.target().unwrap();
     let commit = repo.find_commit(oid).unwrap();
 
-    let _branch = repo.branch(branch_name, &commit, false);
+    let mut branch = repo.branch(branch_name, &commit, false).unwrap();
+    let _sup = branch
+        .set_upstream(Some(&format!("origin/{branch_name}")))
+        .unwrap();
 
     let obj = repo
         .revparse_single(&("refs/heads/".to_owned() + branch_name))
