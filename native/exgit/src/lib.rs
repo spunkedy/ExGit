@@ -198,7 +198,7 @@ fn push_remote(destination: &str, branch: &str) -> Result<(Atom, String), Error>
     let callbacks = get_credentials();
     po.remote_callbacks(callbacks);
 
-    // remote.connect(Direction::Push);
+    let _push = remote.connect(Direction::Push);
     let result = remote.push(
         &[format!("refs/heads/{}:refs/heads/{}", branch, branch)],
         Some(&mut po),
