@@ -3,6 +3,7 @@ use git2::build::RepoBuilder;
 use git2::string_array::StringArray;
 use git2::{Cred, Credentials, Direction, ErrorCode, Oid, RemoteCallbacks, Repository};
 use rustler::{Atom, Error, Term};
+use std::cell::RefCell;
 use std::env;
 use std::path::Path;
 
@@ -38,6 +39,7 @@ mod atoms {
         hashsummismatch,
         indexdirty,
         applyfail,
+        push_error,
         owner
     }
 }
@@ -189,13 +191,39 @@ fn latest_message(destination: &str) -> Result<(Atom, String), Error> {
     Ok((atoms::ok(), String::from(message)))
 }
 
+struct State {
+    progress: Option<String>,
+    has_error: bool,
+}
+
 #[rustler::nif]
 fn push_remote(destination: &str, branch: &str) -> Result<(Atom, String), Error> {
+    let state = RefCell::new(State {
+        progress: None,
+        has_error: false,
+    });
+
     let repo = Repository::open(destination).unwrap();
     let mut remote = repo.find_remote("origin").unwrap();
 
     let mut po = git2::PushOptions::new();
-    let callbacks = get_credentials();
+    let mut callbacks = get_credentials();
+    callbacks.push_update_reference(|_ref, message| {
+        match message {
+            Some(to_process) => {
+                let mut state = state.borrow_mut();
+                state.progress = Some(format!("{}", to_process));
+                state.has_error = true;
+                println!("{}", state.progress.as_ref().unwrap());
+            }
+            None => {
+                let mut state = state.borrow_mut();
+                state.has_error = false;
+                state.progress = Some("Pushed Successfully".to_string());
+            }
+        }
+        Ok(())
+    });
     po.remote_callbacks(callbacks);
 
     let _push = remote.connect(Direction::Push);
@@ -203,8 +231,17 @@ fn push_remote(destination: &str, branch: &str) -> Result<(Atom, String), Error>
         &[format!("refs/heads/{}:refs/heads/{}", branch, branch)],
         Some(&mut po),
     );
+
     handle_git_error!(result);
-    Ok((atoms::ok(), String::from("Pushed Successfully")))
+    let final_state = state.borrow_mut();
+    if final_state.has_error {
+        return Err(Error::Term(Box::new(atoms::push_error())));
+    } else {
+        Ok((
+            atoms::ok(),
+            final_state.progress.as_ref().unwrap().to_string(),
+        ))
+    }
 }
 
 #[rustler::nif]
